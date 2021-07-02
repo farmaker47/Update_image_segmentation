@@ -16,11 +16,11 @@
 
 package org.tensorflow.lite.examples.imagesegmentation
 
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import android.content.Context
 import android.util.Log
-import androidx.lifecycle.viewModelScope
+import android.widget.TextView
+import androidx.lifecycle.*
 import kotlinx.coroutines.*
 import java.io.File
 import org.tensorflow.lite.examples.imagesegmentation.tflite.ImageSegmentationModelExecutor
@@ -29,31 +29,53 @@ import org.tensorflow.lite.examples.imagesegmentation.utils.ImageUtils
 
 private const val TAG = "MLExecutionViewModel"
 
-class MLExecutionViewModel : ViewModel() {
+class MLExecutionViewModel(application: Application) : AndroidViewModel(application) {
 
-  private val _resultingBitmap = MutableLiveData<ModelExecutionResult>()
+    private var imageSegmentationModel: ImageSegmentationModelExecutor? = null
+    private var useGPU = false
 
-  val resultingBitmap: LiveData<ModelExecutionResult>
-    get() = _resultingBitmap
+    private val _resultingBitmap = MutableLiveData<ModelExecutionResult>()
+    val resultingBitmap: LiveData<ModelExecutionResult>
+        get() = _resultingBitmap
 
-  // the execution of the model has to be on the same thread where the interpreter
-  // was created
-  fun onApplyModel(
-    filePath: String,
-    imageSegmentationModel: ImageSegmentationModelExecutor?
-  ) {
-    viewModelScope.launch(Dispatchers.Default) {
-      val contentImage =
-        ImageUtils.decodeBitmap(
-          File(filePath)
-        )
-      try {
-        val result = imageSegmentationModel?.execute(contentImage)
-        _resultingBitmap.postValue(result)
-      } catch (e: Exception) {
-        Log.e(TAG, "Fail to execute ImageSegmentationModelExecutor: ${e.message}")
-        _resultingBitmap.postValue(null)
-      }
+    private val _errorString = MutableLiveData<String>()
+    val errorString: LiveData<String>
+        get() = _errorString
+
+    init {
+        createModelExecutor(useGPU)
     }
-  }
+
+    fun createModelExecutor(useGPU: Boolean) {
+        if (imageSegmentationModel != null) {
+            imageSegmentationModel!!.close()
+            imageSegmentationModel = null
+        }
+        try {
+            imageSegmentationModel = ImageSegmentationModelExecutor(getApplication(), useGPU)
+        } catch (e: Exception) {
+            Log.e(TAG, "Fail to create ImageSegmentationModelExecutor: ${e.message}")
+            //_errorString.value = e.message
+        }
+    }
+
+    // the execution of the model has to be on the same thread where the interpreter
+    // was created
+    fun onApplyModel(
+        filePath: String
+    ) {
+        viewModelScope.launch(Dispatchers.Default) {
+            val contentImage =
+                ImageUtils.decodeBitmap(
+                    File(filePath)
+                )
+            try {
+                val result = imageSegmentationModel?.execute(contentImage)
+                _resultingBitmap.postValue(result)
+            } catch (e: Exception) {
+                Log.e(TAG, "Fail to execute ImageSegmentationModelExecutor: ${e.message}")
+                _resultingBitmap.postValue(null)
+            }
+        }
+    }
 }

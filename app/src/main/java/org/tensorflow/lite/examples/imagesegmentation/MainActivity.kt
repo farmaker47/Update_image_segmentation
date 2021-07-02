@@ -43,7 +43,6 @@ import kotlinx.coroutines.*
 import java.io.File
 import org.tensorflow.lite.examples.imagesegmentation.camera.CameraFragment
 import org.tensorflow.lite.examples.imagesegmentation.databinding.TfeIsActivityMainBinding
-import org.tensorflow.lite.examples.imagesegmentation.tflite.ImageSegmentationModelExecutor
 import org.tensorflow.lite.examples.imagesegmentation.tflite.ModelExecutionResult
 
 // This is an arbitrary number we are using to keep tab of the permission
@@ -63,15 +62,14 @@ class MainActivity : AppCompatActivity(), CameraFragment.OnCaptureFinished {
 
     private var lastSavedFile = ""
     private var useGPU = false
-    private var imageSegmentationModel: ImageSegmentationModelExecutor? = null
 
     private var lensFacing = CameraCharacteristics.LENS_FACING_FRONT
-    private lateinit var binding:TfeIsActivityMainBinding
+    private lateinit var binding: TfeIsActivityMainBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        binding = DataBindingUtil.setContentView(this,R.layout.tfe_is_activity_main)
+        binding = DataBindingUtil.setContentView(this, R.layout.tfe_is_activity_main)
 
         val toolbar: Toolbar = findViewById(R.id.toolbar)
         setSupportActionBar(toolbar)
@@ -88,6 +86,7 @@ class MainActivity : AppCompatActivity(), CameraFragment.OnCaptureFinished {
             )
         }
 
+        // Observe ViewModel variables
         viewModel = AndroidViewModelFactory(application).create(MLExecutionViewModel::class.java)
         viewModel.resultingBitmap.observe(
             this,
@@ -98,20 +97,22 @@ class MainActivity : AppCompatActivity(), CameraFragment.OnCaptureFinished {
                 enableControls(true)
             }
         )
+        viewModel.errorString.observe(this, { errorString ->
+            binding.logView.text = errorString
+        })
 
-        createModelExecutor(useGPU)
 
         binding.switchUseGpu.setOnCheckedChangeListener { _, isChecked ->
             useGPU = isChecked
             lifecycleScope.launch(Dispatchers.Default) {
-                createModelExecutor(useGPU)
+                viewModel.createModelExecutor(useGPU)
             }
         }
 
         binding.rerunButton.setOnClickListener {
             if (lastSavedFile.isNotEmpty()) {
                 enableControls(false)
-                viewModel.onApplyModel(lastSavedFile, imageSegmentationModel)
+                viewModel.onApplyModel(lastSavedFile)
             }
         }
 
@@ -120,20 +121,6 @@ class MainActivity : AppCompatActivity(), CameraFragment.OnCaptureFinished {
         setChipsToLogView(HashMap<String, Int>())
         setupControls()
         enableControls(true)
-    }
-
-    private fun createModelExecutor(useGPU: Boolean) {
-        if (imageSegmentationModel != null) {
-            imageSegmentationModel!!.close()
-            imageSegmentationModel = null
-        }
-        try {
-            imageSegmentationModel = ImageSegmentationModelExecutor(this, useGPU)
-        } catch (e: Exception) {
-            Log.e(TAG, "Fail to create ImageSegmentationModelExecutor: ${e.message}")
-            val logText: TextView = findViewById(R.id.log_view)
-            logText.text = e.message
-        }
     }
 
     private fun animateCameraButton() {
@@ -268,6 +255,6 @@ class MainActivity : AppCompatActivity(), CameraFragment.OnCaptureFinished {
 
         lastSavedFile = file.absolutePath
         enableControls(false)
-        viewModel.onApplyModel(file.absolutePath, imageSegmentationModel)
+        viewModel.onApplyModel(file.absolutePath)
     }
 }
