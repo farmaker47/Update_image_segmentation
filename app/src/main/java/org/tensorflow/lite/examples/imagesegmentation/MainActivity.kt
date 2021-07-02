@@ -17,7 +17,6 @@
 package org.tensorflow.lite.examples.imagesegmentation
 
 import android.Manifest
-import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
@@ -45,7 +44,6 @@ import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
 import kotlinx.coroutines.*
 import java.io.File
-import java.util.concurrent.Executors
 import org.tensorflow.lite.examples.imagesegmentation.camera.CameraFragment
 import org.tensorflow.lite.examples.imagesegmentation.tflite.ImageSegmentationModelExecutor
 import org.tensorflow.lite.examples.imagesegmentation.tflite.ModelExecutionResult
