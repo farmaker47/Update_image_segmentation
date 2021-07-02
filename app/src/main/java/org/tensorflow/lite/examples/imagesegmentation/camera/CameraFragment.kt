@@ -42,6 +42,8 @@ import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.View
 import android.view.ViewGroup
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.*
 import java.io.Closeable
 import java.io.File
 import java.io.FileOutputStream
@@ -54,17 +56,12 @@ import java.util.concurrent.TimeoutException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
 import org.tensorflow.lite.examples.imagesegmentation.utils.ImageUtils
+import java.lang.Runnable
 
 class CameraFragment : Fragment() {
 
     private var cameraInitialized: Boolean = false
-    private val fragmentJob = SupervisorJob()
-    val fragmentScope = CoroutineScope(Dispatchers.Main + fragmentJob)
 
     // interface to interact with the hosting activity
     interface OnCaptureFinished {
@@ -187,7 +184,7 @@ class CameraFragment : Fragment() {
      * - Starts the preview by dispatching a repeating capture request
      * - Sets up the image capture listeners
      */
-    private fun initializeCamera() = fragmentScope.launch(Dispatchers.Main) {
+    private fun initializeCamera() = lifecycleScope.launch(Dispatchers.Main) {
         val camera = openCamera()
         session = startCaptureSession(camera)
         cameraInitialized = true
@@ -278,7 +275,7 @@ class CameraFragment : Fragment() {
 
     fun takePicture() {
         // Perform I/O heavy operations in a different scope
-        fragmentScope.launch(Dispatchers.IO) {
+        lifecycleScope.launch(Dispatchers.IO) {
             internalTakePicture().use { result ->
                 Log.d(TAG, "Result received: $result")
 
@@ -295,10 +292,11 @@ class CameraFragment : Fragment() {
                 }
 
                 // Display the photo taken to user
-                fragmentScope.launch(Dispatchers.Main) {
+                withContext(Dispatchers.Main){
                     callback.onCaptureFinished(output)
                     Log.d(TAG, "almos viewing a picture")
                 }
+
             }
         }
     }
@@ -349,7 +347,7 @@ class CameraFragment : Fragment() {
                     // Loop in the coroutine's context until an image with matching timestamp comes
                     // We need to launch the coroutine context again because the callback is done in
                     //  the handler provided to the `capture` method, not in our coroutine context
-                    fragmentScope.launch(cont.context) {
+                    lifecycleScope.launch(Dispatchers.Default) {
                         while (true) {
                             // Dequeue images while timestamps don't match
                             val image = imageQueue.take()
@@ -426,7 +424,6 @@ class CameraFragment : Fragment() {
 
     override fun onDestroy() {
         super.onDestroy()
-        fragmentJob.cancel()
         cameraThread.quitSafely()
         imageReaderThread.quitSafely()
     }
