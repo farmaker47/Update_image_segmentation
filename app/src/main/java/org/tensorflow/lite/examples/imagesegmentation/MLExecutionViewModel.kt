@@ -20,11 +20,9 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import android.util.Log
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.*
 import java.io.File
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.ExecutorCoroutineDispatcher
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
 import org.tensorflow.lite.examples.imagesegmentation.tflite.ImageSegmentationModelExecutor
 import org.tensorflow.lite.examples.imagesegmentation.tflite.ModelExecutionResult
 import org.tensorflow.lite.examples.imagesegmentation.utils.ImageUtils
@@ -38,17 +36,13 @@ class MLExecutionViewModel : ViewModel() {
   val resultingBitmap: LiveData<ModelExecutionResult>
     get() = _resultingBitmap
 
-  private val viewModelJob = Job()
-  private val viewModelScope = CoroutineScope(viewModelJob)
-
   // the execution of the model has to be on the same thread where the interpreter
   // was created
   fun onApplyModel(
     filePath: String,
-    imageSegmentationModel: ImageSegmentationModelExecutor?,
-    inferenceThread: ExecutorCoroutineDispatcher
+    imageSegmentationModel: ImageSegmentationModelExecutor?
   ) {
-    viewModelScope.launch(inferenceThread) {
+    viewModelScope.launch(Dispatchers.Default) {
       val contentImage =
         ImageUtils.decodeBitmap(
           File(filePath)

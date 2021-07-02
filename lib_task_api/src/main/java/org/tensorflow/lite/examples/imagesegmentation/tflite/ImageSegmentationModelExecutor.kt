@@ -22,7 +22,6 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.os.SystemClock
 import android.util.Log
-import kotlin.collections.HashMap
 import org.tensorflow.lite.support.image.TensorImage
 import org.tensorflow.lite.task.vision.segmenter.ImageSegmenter
 import org.tensorflow.lite.task.vision.segmenter.Segmentation
@@ -63,7 +62,8 @@ class ImageSegmentationModelExecutor(
       fullTimeExecutionTime = SystemClock.uptimeMillis()
 
       imageSegmentationTime = SystemClock.uptimeMillis()
-      val tensorImage = TensorImage.fromBitmap(inputImage)
+      val tensorImage = TensorImage()
+      tensorImage.load(inputImage)
       val results = imageSegmenter.segment(tensorImage)
       imageSegmentationTime = SystemClock.uptimeMillis() - imageSegmentationTime
       Log.d(TAG, "Time to run the ImageSegmenter $imageSegmentationTime")
