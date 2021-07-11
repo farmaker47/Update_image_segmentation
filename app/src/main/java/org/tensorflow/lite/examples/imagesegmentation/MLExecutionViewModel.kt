@@ -17,15 +17,14 @@
 package org.tensorflow.lite.examples.imagesegmentation
 
 import android.app.Application
-import android.content.Context
+import android.media.Image
 import android.util.Log
-import android.widget.TextView
 import androidx.lifecycle.*
 import kotlinx.coroutines.*
-import java.io.File
 import org.tensorflow.lite.examples.imagesegmentation.tflite.ImageSegmentationModelExecutor
 import org.tensorflow.lite.examples.imagesegmentation.tflite.ModelExecutionResult
 import org.tensorflow.lite.examples.imagesegmentation.utils.ImageUtils
+import java.io.File
 
 private const val TAG = "MLExecutionViewModel"
 
@@ -59,8 +58,6 @@ class MLExecutionViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    // the execution of the model has to be on the same thread where the interpreter
-    // was created
     fun onApplyModel(
         filePath: String
     ) {

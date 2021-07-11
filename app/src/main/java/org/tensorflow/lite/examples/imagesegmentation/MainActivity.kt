@@ -22,12 +22,14 @@ import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.hardware.camera2.CameraCharacteristics
+import android.media.Image
 import android.os.Bundle
 import android.os.Process
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import android.util.Log
 import android.util.TypedValue
+import android.view.View
 import android.view.animation.AnimationUtils
 import android.view.animation.BounceInterpolator
 import android.widget.ImageButton
@@ -44,6 +46,7 @@ import java.io.File
 import org.tensorflow.lite.examples.imagesegmentation.camera.CameraFragment
 import org.tensorflow.lite.examples.imagesegmentation.databinding.TfeIsActivityMainBinding
 import org.tensorflow.lite.examples.imagesegmentation.tflite.ModelExecutionResult
+import org.tensorflow.lite.examples.imagesegmentation.utils.SafeClickListener
 
 // This is an arbitrary number we are using to keep tab of the permission
 // request. Where an app has multiple context for requesting permission,
@@ -109,7 +112,7 @@ class MainActivity : AppCompatActivity(), CameraFragment.OnCaptureFinished {
             }
         }
 
-        binding.rerunButton.setOnClickListener {
+        binding.rerunButton.setSafeOnClickListener {
             if (lastSavedFile.isNotEmpty()) {
                 enableControls(false)
                 viewModel.onApplyModel(lastSavedFile)
@@ -190,12 +193,12 @@ class MainActivity : AppCompatActivity(), CameraFragment.OnCaptureFinished {
     }
 
     private fun setupControls() {
-        binding.captureButton.setOnClickListener {
+        binding.captureButton.setSafeOnClickListener {
             it.clearAnimation()
             cameraFragment.takePicture()
         }
 
-        findViewById<ImageButton>(R.id.toggle_button).setOnClickListener {
+        findViewById<ImageButton>(R.id.toggle_button).setSafeOnClickListener {
             lensFacing = if (lensFacing == CameraCharacteristics.LENS_FACING_BACK) {
                 CameraCharacteristics.LENS_FACING_FRONT
             } else {
@@ -256,5 +259,12 @@ class MainActivity : AppCompatActivity(), CameraFragment.OnCaptureFinished {
         lastSavedFile = file.absolutePath
         enableControls(false)
         viewModel.onApplyModel(file.absolutePath)
+    }
+
+    fun View.setSafeOnClickListener(onSafeClick: (View) -> Unit) {
+        val safeClickListener = SafeClickListener {
+            onSafeClick(it)
+        }
+        setOnClickListener(safeClickListener)
     }
 }

@@ -17,9 +17,11 @@
 package org.tensorflow.lite.examples.imagesegmentation.tflite
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.media.Image
 import android.os.SystemClock
 import android.util.Log
 import org.tensorflow.lite.support.image.TensorImage
@@ -49,7 +51,13 @@ class ImageSegmentationModelExecutor(
   private var imageSegmentationTime = 0L
   private var maskFlatteningTime = 0L
 
+  private val yuvBytes = arrayOfNulls<ByteArray>(3)
+  private var rgbBytes: IntArray? = null
+  private var yRowStride = 0
+  val kMaxChannelValue = 262143
+
   init {
+
     if (useGPU) {
       throw IllegalArgumentException("ImageSegmenter does not support GPU currently, but CPU.")
     } else {
@@ -70,8 +78,8 @@ class ImageSegmentationModelExecutor(
 
       maskFlatteningTime = SystemClock.uptimeMillis()
       val (maskBitmap, itemsFound) = createMaskBitmapAndLabels(
-        results.get(0), inputImage.getWidth(),
-        inputImage.getHeight()
+        results[0], inputImage.width,
+        inputImage.height
       )
       maskFlatteningTime = SystemClock.uptimeMillis() - maskFlatteningTime
       Log.d(TAG, "Time to create the mask and labels $maskFlatteningTime")
@@ -83,7 +91,7 @@ class ImageSegmentationModelExecutor(
         /*bitmapResult=*/ stackTwoBitmaps(maskBitmap, inputImage),
         /*bitmapOriginal=*/ inputImage,
         /*bitmapMaskOnly=*/ maskBitmap,
-        formatExecutionLog(inputImage.getWidth(), inputImage.getHeight()),
+        formatExecutionLog(inputImage.width, inputImage.height),
         itemsFound
       )
     } catch (e: Exception) {
@@ -91,13 +99,13 @@ class ImageSegmentationModelExecutor(
       Log.d(TAG, exceptionLog)
 
       val emptyBitmap =
-        Bitmap.createBitmap(inputImage.getWidth(), inputImage.getHeight(), Bitmap.Config.ARGB_8888)
+        Bitmap.createBitmap(inputImage.width, inputImage.height, Bitmap.Config.ARGB_8888)
       return ModelExecutionResult(
         emptyBitmap,
         emptyBitmap,
         emptyBitmap,
         exceptionLog,
-        HashMap<String, Int>()
+        HashMap()
       )
     }
   }
@@ -159,6 +167,102 @@ class ImageSegmentationModelExecutor(
 
   fun close() {
     imageSegmenter.close()
+  }
+
+  fun imageToRGB(image: Image?, width: Int, height: Int): Bitmap {
+    if (rgbBytes == null) {
+      rgbBytes = IntArray(width * height)
+    }
+    val rgbFrameBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    try {
+      if (image == null) {
+        return rgbFrameBitmap
+      }
+      Log.e("Degrees_length", rgbBytes?.size.toString())
+      val planes = image.planes
+      fillBytesCameraX(planes, yuvBytes)
+      yRowStride = planes[0].rowStride
+      val uvRowStride = planes[1].rowStride
+      val uvPixelStride = planes[1].pixelStride
+      convertYUV420ToARGB8888(
+        yuvBytes[0] ?: byteArrayOf(),
+        yuvBytes[1] ?: byteArrayOf(),
+        yuvBytes[2] ?: byteArrayOf(),
+        width,
+        height,
+        yRowStride,
+        uvRowStride,
+        uvPixelStride,
+        rgbBytes!!
+      )
+      rgbFrameBitmap.setPixels(rgbBytes, 0, width, 0, 0, width, height)
+    } catch (e: Exception) {
+      Log.e(e.toString(), "Exception!")
+    }
+    return rgbFrameBitmap
+  }
+
+  private fun fillBytesCameraX(planes: Array<Image.Plane>, yuvBytes: Array<ByteArray?>) {
+    // Because of the variable row stride it's not possible to know in
+    // advance the actual necessary dimensions of the yuv planes.
+    for (i in planes.indices) {
+      val buffer = planes[i].buffer
+      if (yuvBytes[i] == null) {
+        yuvBytes[i] = ByteArray(buffer.capacity())
+      }
+      buffer[yuvBytes[i]]
+    }
+  }
+
+  fun convertYUV420ToARGB8888(
+    yData: ByteArray,
+    uData: ByteArray,
+    vData: ByteArray,
+    width: Int,
+    height: Int,
+    yRowStride: Int,
+    uvRowStride: Int,
+    uvPixelStride: Int,
+    out: IntArray
+  ) {
+    var yp = 0
+    for (j in 0 until height) {
+      val pY = yRowStride * j
+      val pUV = uvRowStride * (j shr 1)
+      for (i in 0 until width) {
+        val uv_offset = pUV + (i shr 1) * uvPixelStride
+        out[yp++] = YUV2RGB(
+          0xff and yData[pY + i].toInt(), 0xff and uData[uv_offset]
+            .toInt(), 0xff and vData[uv_offset].toInt()
+        )
+      }
+    }
+  }
+
+  private fun YUV2RGB(y: Int, u: Int, v: Int): Int {
+    // Adjust and check YUV values
+    var y = y
+    var u = u
+    var v = v
+    y = Math.max(y - 16, 0)
+    u -= 128
+    v -= 128
+
+    // This is the floating point equivalent. We do the conversion in integer
+    // because some Android devices do not have floating point in hardware.
+    // nR = (int)(1.164 * nY + 2.018 * nU);
+    // nG = (int)(1.164 * nY - 0.813 * nV - 0.391 * nU);
+    // nB = (int)(1.164 * nY + 1.596 * nV);
+    val y1192 = 1192 * y
+    var r = y1192 + 1634 * v
+    var g = y1192 - 833 * v - 400 * u
+    var b = y1192 + 2066 * u
+
+    // Clipping RGB values to be inside boundaries [ 0 , kMaxChannelValue ]
+    r = if (r > kMaxChannelValue) kMaxChannelValue else Math.max(r, 0)
+    g = if (g > kMaxChannelValue) kMaxChannelValue else Math.max(g, 0)
+    b = if (b > kMaxChannelValue) kMaxChannelValue else Math.max(b, 0)
+    return -0x1000000 or (r shl 6 and 0xff0000) or (g shr 2 and 0xff00) or (b shr 10 and 0xff)
   }
 
   companion object {

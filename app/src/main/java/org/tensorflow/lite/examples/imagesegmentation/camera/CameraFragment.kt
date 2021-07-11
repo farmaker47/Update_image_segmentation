@@ -17,11 +17,15 @@
 package org.tensorflow.lite.examples.imagesegmentation.camera
 
 import android.annotation.SuppressLint
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.media.ExifInterface
+import android.media.Image
 import android.os.Bundle
 import androidx.fragment.app.Fragment
 import android.util.Log
@@ -58,6 +62,9 @@ class CameraFragment : Fragment() {
 
     private lateinit var binding: TfeCameraFragmentBinding
 
+    //private lateinit var broadcastReceiver: BroadcastReceiver
+    //private lateinit var imageGeneral: Image
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -65,9 +72,25 @@ class CameraFragment : Fragment() {
     ): View {
         binding = TfeCameraFragmentBinding.inflate(inflater)
 
+        //setUpBroadcastReceiver()
 
         return binding.root
     }
+
+    /*private fun setUpBroadcastReceiver() {
+        broadcastReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, i: Intent?) {
+                Log.d("Broadcast", "Received")
+                imageGeneral.close()
+            }
+        }
+        activity?.registerReceiver(broadcastReceiver, IntentFilter("all_articles_update"))
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        activity?.unregisterReceiver(broadcastReceiver)
+    }*/
 
     @SuppressLint("MissingPermission")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -118,9 +141,10 @@ class CameraFragment : Fragment() {
         }, ContextCompat.getMainExecutor(requireContext()))
     }
 
+    @SuppressLint("UnsafeOptInUsageError")
     fun takePicture() {
 
-        lifecycleScope.launch(Dispatchers.IO) {
+        lifecycleScope.launch(Dispatchers.Default) {
 
             // Get a stable reference of the modifiable image capture use case
             val imageCapture = imageCapture ?: return@launch
@@ -130,6 +154,45 @@ class CameraFragment : Fragment() {
 
             // Create output options object which contains file + metadata
             val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
+
+            /*imageCapture.takePicture(
+                ContextCompat.getMainExecutor(requireActivity()),
+                object : ImageCapture.OnImageCapturedCallback() {
+
+                    override fun onError(exc: ImageCaptureException) {
+                        Log.e(TAG, "Photo capture failed: ${exc.message}", exc)
+                    }
+
+                    override fun onCaptureSuccess(image: ImageProxy) {
+
+
+                        Log.e("FORMAT", image.format.toString())
+
+                        *//*kotlin.runCatching {
+                        }.onFailure {
+                        }.onSuccess {
+
+
+                        }
+*//*
+                        Log.v(TAG, "Success")
+                        // Trigger the callback
+                        image.image?.let {
+                            callback.onCaptureFinished(it)
+                        }
+
+                        lifecycleScope.launch {
+                            delay(900)
+                            image.close()
+                        }
+
+                        //image.close()
+
+                    }
+                }
+
+
+            )*/
 
             imageCapture.takePicture(
                 outputOptions,
@@ -161,7 +224,6 @@ class CameraFragment : Fragment() {
 
                     }
                 })
-
         }
     }
 
@@ -195,7 +257,10 @@ class CameraFragment : Fragment() {
     private fun rotationDegrees(file: File): Int {
         val ei = ExifInterface(file.absolutePath)
         // Return rotation degree based on orientation from exif
-        return when (ei.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)) {
+        return when (ei.getAttributeInt(
+            ExifInterface.TAG_ORIENTATION,
+            ExifInterface.ORIENTATION_NORMAL
+        )) {
             ExifInterface.ORIENTATION_ROTATE_90 -> 90
             ExifInterface.ORIENTATION_ROTATE_180 -> 180
             ExifInterface.ORIENTATION_ROTATE_270 -> 270
