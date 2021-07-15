@@ -17,53 +17,37 @@
 package org.tensorflow.lite.examples.imagesegmentation.camera
 
 import android.annotation.SuppressLint
-import android.content.BroadcastReceiver
 import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.Matrix
-import android.media.ExifInterface
 import android.media.Image
 import android.os.Bundle
-import androidx.fragment.app.Fragment
 import android.util.Log
 import android.util.Size
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
+import android.view.*
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.*
+import androidx.fragment.app.Fragment
 import org.tensorflow.lite.examples.imagesegmentation.databinding.TfeCameraFragmentBinding
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import java.io.*
+import java.util.concurrent.ExecutionException
 
 class CameraFragment : Fragment() {
 
-    // interface to interact with the hosting activity
+    /**
+     * Interface to interact with the hosting activity
+     */
     interface OnCaptureFinished {
-        fun onCaptureFinished(file: File)
+        fun onCaptureFinished(image: Image, imageRotation: Int)
     }
 
-    private var preview: Preview? = null
-    private var imageCapture: ImageCapture? = null
-    private var camera: Camera? = null
-    private var bitmap: Bitmap? = null
+    private var imageAnalysis: ImageAnalysis? = null
     private var lensFacing: Int = 0
     private lateinit var filePath: File
-
+    private val DESIRED_PREVIEW_SIZE = Size(640, 480)
+    private var isProcessingFrame = true
+    var copyImage: ImageProxy? = null
     internal lateinit var callback: OnCaptureFinished
-
     private lateinit var binding: TfeCameraFragmentBinding
-
-    //private lateinit var broadcastReceiver: BroadcastReceiver
-    //private lateinit var imageGeneral: Image
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -71,199 +55,122 @@ class CameraFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View {
         binding = TfeCameraFragmentBinding.inflate(inflater)
-
-        //setUpBroadcastReceiver()
-
         return binding.root
     }
-
-    /*private fun setUpBroadcastReceiver() {
-        broadcastReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, i: Intent?) {
-                Log.d("Broadcast", "Received")
-                imageGeneral.close()
-            }
-        }
-        activity?.registerReceiver(broadcastReceiver, IntentFilter("all_articles_update"))
-    }
-
-    override fun onDestroyView() {
-        super.onDestroyView()
-        activity?.unregisterReceiver(broadcastReceiver)
-    }*/
 
     @SuppressLint("MissingPermission")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        // Start the camera
         startCamera()
-
     }
 
-    private fun startCamera() {
-        val cameraProviderFuture = ProcessCameraProvider.getInstance(requireContext())
+    /*private val orientationEventListener by lazy {
+        object : OrientationEventListener(requireActivity()) {
 
-        val screenAspectRatio = 1.0 / 1.0
-        Log.d(TAG, "Preview aspect ratio: $screenAspectRatio")
+            override fun onOrientationChanged(orientation: Int) {
 
-        cameraProviderFuture.addListener({
-            // Used to bind the lifecycle of cameras to the lifecycle owner
-            val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
-
-            // set up Preview
-            preview = Preview.Builder().build()
-
-            // set up Capture
-            imageCapture = ImageCapture.Builder()
-                .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
-                //.setTargetRotation(Surface.ROTATION_270)
-                //.setTargetRotation(binding.previewView.display.rotation)
-                .setTargetResolution(Size(512, 512)) // Target resolution to 512x512
-                .build()
-
-            // Select front camera as default for selfie
-            val cameraSelector = CameraSelector.Builder().requireLensFacing(lensFacing)
-                .build() // Change camera to front facing
-
-            try {
-                // Unbind use cases before rebinding
-                cameraProvider.unbindAll()
-
-                // Bind use cases to camera
-                camera = cameraProvider.bindToLifecycle(
-                    this, cameraSelector, preview, imageCapture
-                )
-                preview?.setSurfaceProvider(binding.previewView.surfaceProvider)
-            } catch (exc: Exception) {
-                Log.e(TAG, "Use case binding failed", exc)
-            }
-
-        }, ContextCompat.getMainExecutor(requireContext()))
-    }
-
-    @SuppressLint("UnsafeOptInUsageError")
-    fun takePicture() {
-
-        lifecycleScope.launch(Dispatchers.Default) {
-
-            // Get a stable reference of the modifiable image capture use case
-            val imageCapture = imageCapture ?: return@launch
-
-            // Create timestamped output file to hold the image
-            val photoFile = createFile(requireActivity(), "jpg")
-
-            // Create output options object which contains file + metadata
-            val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
-
-            /*imageCapture.takePicture(
-                ContextCompat.getMainExecutor(requireActivity()),
-                object : ImageCapture.OnImageCapturedCallback() {
-
-                    override fun onError(exc: ImageCaptureException) {
-                        Log.e(TAG, "Photo capture failed: ${exc.message}", exc)
-                    }
-
-                    override fun onCaptureSuccess(image: ImageProxy) {
-
-
-                        Log.e("FORMAT", image.format.toString())
-
-                        *//*kotlin.runCatching {
-                        }.onFailure {
-                        }.onSuccess {
-
-
-                        }
-*//*
-                        Log.v(TAG, "Success")
-                        // Trigger the callback
-                        image.image?.let {
-                            callback.onCaptureFinished(it)
-                        }
-
-                        lifecycleScope.launch {
-                            delay(900)
-                            image.close()
-                        }
-
-                        //image.close()
-
-                    }
+                val rotation = when (orientation) {
+                    in 45 until 135 -> Surface.ROTATION_270
+                    in 135 until 225 -> Surface.ROTATION_180
+                    in 225 until 315 -> Surface.ROTATION_90
+                    else -> Surface.ROTATION_0
                 }
 
+                imageAnalysis?.targetRotation = rotation
+            }
+        }
+    }
 
-            )*/
+    override fun onStart() {
+        super.onStart()
+        orientationEventListener.enable()
+    }
 
-            imageCapture.takePicture(
-                outputOptions,
-                ContextCompat.getMainExecutor(requireActivity()),
-                object : ImageCapture.OnImageSavedCallback {
-                    override fun onError(exc: ImageCaptureException) {
-                        Log.e(TAG, "Photo capture failed: ${exc.message}", exc)
-                    }
+    override fun onStop() {
+        super.onStop()
+        orientationEventListener.disable()
+    }*/
 
-                    override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+    @SuppressLint("UnsafeOptInUsageError")
+    private fun startCamera() {
+        val cameraProviderFuture = ProcessCameraProvider.getInstance(requireActivity())
 
-                        // Get rotation degree
-                        val degrees: Int = rotationDegrees(photoFile)
+        cameraProviderFuture.addListener({
+            // Camera provider is now guaranteed to be available
+            try {
+                val cameraProvider = cameraProviderFuture.get()
 
-                        // Create a bitmap from the .jpg image
-                        bitmap = BitmapFactory.decodeFile(photoFile.absolutePath)
+                // Set up the view finder use case to display camera preview
+                val preview =
+                    Preview.Builder().build()
 
-                        // Rotate image if needed
-                        if (degrees != 0) {
-                            bitmap = rotateBitmap(bitmap!!, degrees)
-                        }
+                // Choose the camera by requiring a lens facing
+                val cameraSelector = CameraSelector.Builder()
+                    .requireLensFacing(lensFacing)
+                    .build()
 
-                        // Save bitmap image
-                        filePath = saveBitmap(bitmap, photoFile)
-                        Log.v(TAG, filePath.toString())
+                // Image Analysis
+                imageAnalysis = ImageAnalysis.Builder()
+                    .setTargetResolution(DESIRED_PREVIEW_SIZE)
+                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                    .build()
+                imageAnalysis?.setAnalyzer(
+                    ContextCompat.getMainExecutor(requireActivity()),
+                    { image ->
+                        copyImage = image
+                        // Define rotation Degrees of the imageProxy
+                        val rotationDegrees = image.imageInfo.rotationDegrees
+                        Log.v("Image_degrees", rotationDegrees.toString())
+                        Log.v("Screen_degrees", getScreenOrientation().toString())
 
                         // Trigger the callback
-                        callback.onCaptureFinished(filePath)
+                        if (!isProcessingFrame) {
+                            //image.image?.let { copyImage = image }
+                            copyImage?.image?.let {
+                                callback.onCaptureFinished(
+                                    it,
+                                    rotationDegrees
+                                )
+                            }
+                            isProcessingFrame = true
 
-                    }
-                })
-        }
+                        }
+                    })
+
+                // Connect the preview use case to the previewView
+                preview.setSurfaceProvider(
+                    binding.previewView.surfaceProvider
+                )
+
+                // Attach use cases to the camera with the same lifecycle owner
+                if (cameraProvider != null) {
+                    val camera = cameraProvider.bindToLifecycle(
+                        this,
+                        cameraSelector,
+                        imageAnalysis,
+                        preview
+                    )
+                }
+            } catch (e: ExecutionException) {
+                e.printStackTrace()
+            } catch (e: InterruptedException) {
+                e.printStackTrace()
+            }
+        }, ContextCompat.getMainExecutor(requireActivity()))
     }
 
-    fun saveBitmap(bitmap: Bitmap?, file: File): File {
-        try {
-            val stream: OutputStream = FileOutputStream(file)
-            bitmap?.compress(Bitmap.CompressFormat.JPEG, 100, stream)
-            stream.flush()
-            stream.close()
-        } catch (e: IOException) {
-            e.printStackTrace()
-        }
-
-        return file
+    fun processingImage() {
+        isProcessingFrame = false
+        copyImage?.close()
     }
 
-    private fun rotateBitmap(bitmap: Bitmap, rotationDegrees: Int): Bitmap {
-
-        val rotationMatrix = Matrix()
-        rotationMatrix.postRotate(rotationDegrees.toFloat())
-        val rotatedBitmap =
-            Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, rotationMatrix, true)
-        bitmap.recycle()
-
-        return rotatedBitmap
-    }
-
-    /**
-     * Get rotation degree from image exif
-     */
-    private fun rotationDegrees(file: File): Int {
-        val ei = ExifInterface(file.absolutePath)
-        // Return rotation degree based on orientation from exif
-        return when (ei.getAttributeInt(
-            ExifInterface.TAG_ORIENTATION,
-            ExifInterface.ORIENTATION_NORMAL
-        )) {
-            ExifInterface.ORIENTATION_ROTATE_90 -> 90
-            ExifInterface.ORIENTATION_ROTATE_180 -> 180
-            ExifInterface.ORIENTATION_ROTATE_270 -> 270
+    private fun getScreenOrientation(): Int {
+        return when (requireActivity().display?.rotation) {
+            Surface.ROTATION_270 -> 270
+            Surface.ROTATION_180 -> 180
+            Surface.ROTATION_90 -> 90
             else -> 0
         }
     }
@@ -283,17 +190,6 @@ class CameraFragment : Fragment() {
 
     companion object {
         private val TAG = CameraFragment::class.java.simpleName
-
-        /**
-         * Create a [File] named a using formatted timestamp with the current date and time.
-         *
-         * @return [File] created.
-         */
-        private fun createFile(context: Context, extension: String): File {
-            val sdf = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss_SSS", Locale.US)
-            return File(context.filesDir, "IMG_${sdf.format(Date())}.$extension")
-        }
-
         @JvmStatic
         fun newInstance(): CameraFragment =
             CameraFragment()

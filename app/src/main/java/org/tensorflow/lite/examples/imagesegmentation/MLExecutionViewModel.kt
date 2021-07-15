@@ -59,15 +59,11 @@ class MLExecutionViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     fun onApplyModel(
-        filePath: String
+        contentImage: Image, imageRotation: Int
     ) {
         viewModelScope.launch(Dispatchers.Default) {
-            val contentImage =
-                ImageUtils.decodeBitmap(
-                    File(filePath)
-                )
             try {
-                val result = imageSegmentationModel?.execute(contentImage)
+                val result = imageSegmentationModel?.execute(contentImage, imageRotation)
                 _resultingBitmap.postValue(result)
             } catch (e: Exception) {
                 Log.e(TAG, "Fail to execute ImageSegmentationModelExecutor: ${e.message}")

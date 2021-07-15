@@ -17,14 +17,15 @@
 package org.tensorflow.lite.examples.imagesegmentation.tflite
 
 import android.content.Context
-import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Matrix
 import android.media.Image
 import android.os.SystemClock
 import android.util.Log
 import org.tensorflow.lite.support.image.TensorImage
+import org.tensorflow.lite.task.core.vision.ImageProcessingOptions
 import org.tensorflow.lite.task.vision.segmenter.ImageSegmenter
 import org.tensorflow.lite.task.vision.segmenter.Segmentation
 
@@ -41,234 +42,270 @@ import org.tensorflow.lite.task.vision.segmenter.Segmentation
  * 'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tv'
  */
 class ImageSegmentationModelExecutor(
-  context: Context,
-  private var useGPU: Boolean = false
+    context: Context,
+    private var useGPU: Boolean = false
 ) {
 
-  private val imageSegmenter: ImageSegmenter
+    private val imageSegmenter: ImageSegmenter
 
-  private var fullTimeExecutionTime = 0L
-  private var imageSegmentationTime = 0L
-  private var maskFlatteningTime = 0L
+    private var fullTimeExecutionTime = 0L
+    private var imageSegmentationTime = 0L
+    private var maskFlatteningTime = 0L
 
-  private val yuvBytes = arrayOfNulls<ByteArray>(3)
-  private var rgbBytes: IntArray? = null
-  private var yRowStride = 0
-  val kMaxChannelValue = 262143
+    private val yuvBytes = arrayOfNulls<ByteArray>(3)
+    private var rgbBytes: IntArray? = null
+    private var yRowStride = 0
+    val kMaxChannelValue = 262143
 
-  init {
+    init {
 
-    if (useGPU) {
-      throw IllegalArgumentException("ImageSegmenter does not support GPU currently, but CPU.")
-    } else {
-      imageSegmenter = ImageSegmenter.createFromFile(context, IMAGE_SEGMENTATION_MODEL)
+        if (useGPU) {
+            throw IllegalArgumentException("ImageSegmenter does not support GPU currently, but CPU.")
+        } else {
+            imageSegmenter = ImageSegmenter.createFromFile(context, IMAGE_SEGMENTATION_MODEL)
+        }
     }
-  }
 
-  fun execute(inputImage: Bitmap): ModelExecutionResult {
-    try {
-      fullTimeExecutionTime = SystemClock.uptimeMillis()
+    fun execute(inputImage: Image, imageRotation: Int): ModelExecutionResult {
+        try {
+            fullTimeExecutionTime = SystemClock.uptimeMillis()
+            val originalImage = imageToRGB(inputImage, inputImage.width, inputImage.height)
 
-      imageSegmentationTime = SystemClock.uptimeMillis()
-      val tensorImage = TensorImage()
-      tensorImage.load(inputImage)
-      val results = imageSegmenter.segment(tensorImage)
-      imageSegmentationTime = SystemClock.uptimeMillis() - imageSegmentationTime
-      Log.d(TAG, "Time to run the ImageSegmenter $imageSegmentationTime")
+            imageSegmentationTime = SystemClock.uptimeMillis()
+            val tensorImage = TensorImage()
+            tensorImage.load(inputImage)
+            val imageOptions = ImageProcessingOptions.builder()
+                .setOrientation(
+                    getOrientation(
+                        imageRotation
+                    )
+                )
+                .build()
+            val results = imageSegmenter.segment(tensorImage, imageOptions)
+            imageSegmentationTime = SystemClock.uptimeMillis() - imageSegmentationTime
+            Log.d(TAG, "Time to run the ImageSegmenter $imageSegmentationTime")
 
-      maskFlatteningTime = SystemClock.uptimeMillis()
-      val (maskBitmap, itemsFound) = createMaskBitmapAndLabels(
-        results[0], inputImage.width,
-        inputImage.height
-      )
-      maskFlatteningTime = SystemClock.uptimeMillis() - maskFlatteningTime
-      Log.d(TAG, "Time to create the mask and labels $maskFlatteningTime")
+            maskFlatteningTime = SystemClock.uptimeMillis()
+            val (maskBitmap, itemsFound) = createMaskBitmapAndLabels(
+                results[0], inputImage.width,
+                inputImage.height
+            )
+            maskFlatteningTime = SystemClock.uptimeMillis() - maskFlatteningTime
+            Log.d(TAG, "Time to create the mask and labels $maskFlatteningTime")
 
-      fullTimeExecutionTime = SystemClock.uptimeMillis() - fullTimeExecutionTime
-      Log.d(TAG, "Total time execution $fullTimeExecutionTime")
+            fullTimeExecutionTime = SystemClock.uptimeMillis() - fullTimeExecutionTime
+            Log.d(TAG, "Total time execution $fullTimeExecutionTime")
 
-      return ModelExecutionResult(
-        /*bitmapResult=*/ stackTwoBitmaps(maskBitmap, inputImage),
-        /*bitmapOriginal=*/ inputImage,
-        /*bitmapMaskOnly=*/ maskBitmap,
-        formatExecutionLog(inputImage.width, inputImage.height),
-        itemsFound
-      )
-    } catch (e: Exception) {
-      val exceptionLog = "something went wrong: ${e.message}"
-      Log.d(TAG, exceptionLog)
+            return ModelExecutionResult(
+                /*bitmapResult=*/ rotateBitmap(
+                    stackTwoBitmaps(
+                        maskBitmap,
+                        originalImage
+                    ), imageRotation
+                ),
+                /*bitmapOriginal=*/ rotateBitmap(originalImage, imageRotation),
+                /*bitmapMaskOnly=*/ rotateBitmap(maskBitmap, imageRotation),
+                formatExecutionLog(inputImage.width, inputImage.height),
+                itemsFound
+            )
+        } catch (e: Exception) {
+            val exceptionLog = "something went wrong: ${e.message}"
+            Log.d(TAG, exceptionLog)
 
-      val emptyBitmap =
-        Bitmap.createBitmap(inputImage.width, inputImage.height, Bitmap.Config.ARGB_8888)
-      return ModelExecutionResult(
-        emptyBitmap,
-        emptyBitmap,
-        emptyBitmap,
-        exceptionLog,
-        HashMap()
-      )
+            val emptyBitmap =
+                Bitmap.createBitmap(inputImage.width, inputImage.height, Bitmap.Config.ARGB_8888)
+            return ModelExecutionResult(
+                emptyBitmap,
+                emptyBitmap,
+                emptyBitmap,
+                exceptionLog,
+                HashMap()
+            )
+        }
     }
-  }
 
-  private fun createMaskBitmapAndLabels(
-    result: Segmentation,
-    inputWidth: Int,
-    inputHeight: Int
-  ): Pair<Bitmap, Map<String, Int>> {
-    // For the sake of this demo, change the alpha channel from 255 (completely opaque) to 128
-    // (semi-transparent), because the maskBitmap will be stacked over the original image later.
-    val coloredLabels = result.getColoredLabels()
-    var colors = IntArray(coloredLabels.size)
-    var cnt = 0
-    for (coloredLabel in coloredLabels) {
-      val rgb = coloredLabel.getArgb()
-      colors[cnt++] = Color.argb(ALPHA_VALUE, Color.red(rgb), Color.green(rgb), Color.blue(rgb))
+    /**
+     * See http://jpegclub.org/exif_orientation.html for info
+     */
+    private fun getOrientation(cameraOrientation: Int): ImageProcessingOptions.Orientation {
+        return when (cameraOrientation / 90) {
+            3 -> ImageProcessingOptions.Orientation.RIGHT_BOTTOM
+            2 -> ImageProcessingOptions.Orientation.BOTTOM_LEFT
+            1 -> ImageProcessingOptions.Orientation.LEFT_TOP
+            else -> ImageProcessingOptions.Orientation.TOP_RIGHT
+        }
     }
-    // Use completely transparent for the background color.
-    colors[0] = Color.TRANSPARENT
 
-    // Create the mask bitmap with colors and the set of detected labels.
-    val maskTensor = result.getMasks().get(0)
-    val maskArray = maskTensor.getBuffer().array()
-    val pixels = IntArray(maskArray.size)
-    val itemsFound = HashMap<String, Int>()
-    for (i in maskArray.indices) {
-      val color = colors[maskArray[i].toInt()]
-      pixels[i] = color
-      itemsFound.put(coloredLabels.get(maskArray[i].toInt()).getlabel(), color)
+    private fun rotateBitmap(bitmap: Bitmap, rotationDegrees: Int): Bitmap {
+        val rotationMatrix = Matrix()
+        rotationMatrix.postRotate(rotationDegrees.toFloat())
+        val rotatedBitmap =
+            Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, rotationMatrix, true)
+        bitmap.recycle()
+        return rotatedBitmap
     }
-    val maskBitmap = Bitmap.createBitmap(
-      pixels, maskTensor.getWidth(), maskTensor.getHeight(),
-      Bitmap.Config.ARGB_8888
-    )
-    // Scale the maskBitmap to the same size as the input image.
-    return Pair(Bitmap.createScaledBitmap(maskBitmap, inputWidth, inputHeight, true), itemsFound)
-  }
 
-  private fun stackTwoBitmaps(foregrand: Bitmap, background: Bitmap): Bitmap {
-    val mergedBitmap =
-      Bitmap.createBitmap(foregrand.getWidth(), foregrand.getHeight(), foregrand.getConfig())
-    val canvas = Canvas(mergedBitmap)
-    canvas.drawBitmap(background, 0.0f, 0.0f, null)
-    canvas.drawBitmap(foregrand, 0.0f, 0.0f, null)
-    return mergedBitmap
-  }
+    private fun createMaskBitmapAndLabels(
+        result: Segmentation,
+        inputWidth: Int,
+        inputHeight: Int
+    ): Pair<Bitmap, Map<String, Int>> {
+        // For the sake of this demo, change the alpha channel from 255 (completely opaque) to 128
+        // (semi-transparent), because the maskBitmap will be stacked over the original image later.
+        val coloredLabels = result.coloredLabels
+        var colors = IntArray(coloredLabels.size)
+        for ((cnt, coloredLabel) in coloredLabels.withIndex()) {
+            val rgb = coloredLabel.argb
+            colors[cnt] = Color.argb(ALPHA_VALUE, Color.red(rgb), Color.green(rgb), Color.blue(rgb))
+        }
+        // Use completely transparent for the background color.
+        colors[0] = Color.TRANSPARENT
 
-  private fun formatExecutionLog(imageWidth: Int, imageHeight: Int): String {
-    val sb = StringBuilder()
-    sb.append("Input Image Size: $imageWidth x $imageHeight\n")
-    sb.append("GPU enabled: $useGPU\n")
-    sb.append("Number of threads: $NUM_THREADS\n")
-    sb.append("ImageSegmenter execution time: $imageSegmentationTime ms\n")
-    sb.append("Mask creation time: $maskFlatteningTime ms\n")
-    sb.append("Full execution time: $fullTimeExecutionTime ms\n")
-    return sb.toString()
-  }
-
-  fun close() {
-    imageSegmenter.close()
-  }
-
-  fun imageToRGB(image: Image?, width: Int, height: Int): Bitmap {
-    if (rgbBytes == null) {
-      rgbBytes = IntArray(width * height)
-    }
-    val rgbFrameBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-    try {
-      if (image == null) {
-        return rgbFrameBitmap
-      }
-      Log.e("Degrees_length", rgbBytes?.size.toString())
-      val planes = image.planes
-      fillBytesCameraX(planes, yuvBytes)
-      yRowStride = planes[0].rowStride
-      val uvRowStride = planes[1].rowStride
-      val uvPixelStride = planes[1].pixelStride
-      convertYUV420ToARGB8888(
-        yuvBytes[0] ?: byteArrayOf(),
-        yuvBytes[1] ?: byteArrayOf(),
-        yuvBytes[2] ?: byteArrayOf(),
-        width,
-        height,
-        yRowStride,
-        uvRowStride,
-        uvPixelStride,
-        rgbBytes!!
-      )
-      rgbFrameBitmap.setPixels(rgbBytes, 0, width, 0, 0, width, height)
-    } catch (e: Exception) {
-      Log.e(e.toString(), "Exception!")
-    }
-    return rgbFrameBitmap
-  }
-
-  private fun fillBytesCameraX(planes: Array<Image.Plane>, yuvBytes: Array<ByteArray?>) {
-    // Because of the variable row stride it's not possible to know in
-    // advance the actual necessary dimensions of the yuv planes.
-    for (i in planes.indices) {
-      val buffer = planes[i].buffer
-      if (yuvBytes[i] == null) {
-        yuvBytes[i] = ByteArray(buffer.capacity())
-      }
-      buffer[yuvBytes[i]]
-    }
-  }
-
-  fun convertYUV420ToARGB8888(
-    yData: ByteArray,
-    uData: ByteArray,
-    vData: ByteArray,
-    width: Int,
-    height: Int,
-    yRowStride: Int,
-    uvRowStride: Int,
-    uvPixelStride: Int,
-    out: IntArray
-  ) {
-    var yp = 0
-    for (j in 0 until height) {
-      val pY = yRowStride * j
-      val pUV = uvRowStride * (j shr 1)
-      for (i in 0 until width) {
-        val uv_offset = pUV + (i shr 1) * uvPixelStride
-        out[yp++] = YUV2RGB(
-          0xff and yData[pY + i].toInt(), 0xff and uData[uv_offset]
-            .toInt(), 0xff and vData[uv_offset].toInt()
+        // Create the mask bitmap with colors and the set of detected labels.
+        val maskTensor = result.masks[0]
+        val maskArray = maskTensor.buffer.array()
+        val pixels = IntArray(maskArray.size)
+        val itemsFound = HashMap<String, Int>()
+        for (i in maskArray.indices) {
+            val color = colors[maskArray[i].toInt()]
+            pixels[i] = color
+            itemsFound[coloredLabels[maskArray[i].toInt()].getlabel()] = color
+        }
+        val maskBitmap = Bitmap.createBitmap(
+            pixels, maskTensor.width, maskTensor.height,
+            Bitmap.Config.ARGB_8888
         )
-      }
+        // Scale the maskBitmap to the same size as the input image.
+        return Pair(
+            Bitmap.createScaledBitmap(maskBitmap, inputWidth, inputHeight, true),
+            itemsFound
+        )
     }
-  }
 
-  private fun YUV2RGB(y: Int, u: Int, v: Int): Int {
-    // Adjust and check YUV values
-    var y = y
-    var u = u
-    var v = v
-    y = Math.max(y - 16, 0)
-    u -= 128
-    v -= 128
+    private fun stackTwoBitmaps(foregrand: Bitmap, background: Bitmap): Bitmap {
+        val mergedBitmap =
+            Bitmap.createBitmap(foregrand.width, foregrand.height, foregrand.config)
+        val canvas = Canvas(mergedBitmap)
+        canvas.drawBitmap(background, 0.0f, 0.0f, null)
+        canvas.drawBitmap(foregrand, 0.0f, 0.0f, null)
+        return mergedBitmap
+    }
 
-    // This is the floating point equivalent. We do the conversion in integer
-    // because some Android devices do not have floating point in hardware.
-    // nR = (int)(1.164 * nY + 2.018 * nU);
-    // nG = (int)(1.164 * nY - 0.813 * nV - 0.391 * nU);
-    // nB = (int)(1.164 * nY + 1.596 * nV);
-    val y1192 = 1192 * y
-    var r = y1192 + 1634 * v
-    var g = y1192 - 833 * v - 400 * u
-    var b = y1192 + 2066 * u
+    private fun formatExecutionLog(imageWidth: Int, imageHeight: Int): String {
+        val sb = StringBuilder()
+        sb.append("Input Image Size: $imageWidth x $imageHeight\n")
+        sb.append("GPU enabled: $useGPU\n")
+        sb.append("Number of threads: $NUM_THREADS\n")
+        sb.append("ImageSegmenter execution time: $imageSegmentationTime ms\n")
+        sb.append("Mask creation time: $maskFlatteningTime ms\n")
+        sb.append("Full execution time: $fullTimeExecutionTime ms\n")
+        return sb.toString()
+    }
 
-    // Clipping RGB values to be inside boundaries [ 0 , kMaxChannelValue ]
-    r = if (r > kMaxChannelValue) kMaxChannelValue else Math.max(r, 0)
-    g = if (g > kMaxChannelValue) kMaxChannelValue else Math.max(g, 0)
-    b = if (b > kMaxChannelValue) kMaxChannelValue else Math.max(b, 0)
-    return -0x1000000 or (r shl 6 and 0xff0000) or (g shr 2 and 0xff00) or (b shr 10 and 0xff)
-  }
+    fun close() {
+        imageSegmenter.close()
+    }
 
-  companion object {
-    public const val TAG = "SegmentationTask"
-    private const val NUM_THREADS = 4
-    private const val IMAGE_SEGMENTATION_MODEL = "deeplabv3_257_mv_gpu.tflite"
-    private const val ALPHA_VALUE = 128
-  }
+    private fun imageToRGB(image: Image?, width: Int, height: Int): Bitmap {
+        if (rgbBytes == null) {
+            rgbBytes = IntArray(width * height)
+        }
+        val rgbFrameBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        try {
+            if (image == null) {
+                return rgbFrameBitmap
+            }
+            Log.e("Degrees_length", rgbBytes?.size.toString())
+            val planes = image.planes
+            fillBytesCameraX(planes, yuvBytes)
+            yRowStride = planes[0].rowStride
+            val uvRowStride = planes[1].rowStride
+            val uvPixelStride = planes[1].pixelStride
+            convertYUV420ToARGB8888(
+                yuvBytes[0] ?: byteArrayOf(),
+                yuvBytes[1] ?: byteArrayOf(),
+                yuvBytes[2] ?: byteArrayOf(),
+                width,
+                height,
+                yRowStride,
+                uvRowStride,
+                uvPixelStride,
+                rgbBytes!!
+            )
+            rgbFrameBitmap.setPixels(rgbBytes, 0, width, 0, 0, width, height)
+        } catch (e: Exception) {
+            Log.e(e.toString(), "Exception!")
+        }
+        return rgbFrameBitmap
+    }
+
+    private fun fillBytesCameraX(planes: Array<Image.Plane>, yuvBytes: Array<ByteArray?>) {
+        // Because of the variable row stride it's not possible to know in
+        // advance the actual necessary dimensions of the yuv planes.
+        for (i in planes.indices) {
+            val buffer = planes[i].buffer
+            if (yuvBytes[i] == null) {
+                yuvBytes[i] = ByteArray(buffer.capacity())
+            }
+            buffer[yuvBytes[i]]
+        }
+    }
+
+    fun convertYUV420ToARGB8888(
+        yData: ByteArray,
+        uData: ByteArray,
+        vData: ByteArray,
+        width: Int,
+        height: Int,
+        yRowStride: Int,
+        uvRowStride: Int,
+        uvPixelStride: Int,
+        out: IntArray
+    ) {
+        var yp = 0
+        for (j in 0 until height) {
+            val pY = yRowStride * j
+            val pUV = uvRowStride * (j shr 1)
+            for (i in 0 until width) {
+                val uv_offset = pUV + (i shr 1) * uvPixelStride
+                out[yp++] = YUV2RGB(
+                    0xff and yData[pY + i].toInt(), 0xff and uData[uv_offset]
+                        .toInt(), 0xff and vData[uv_offset].toInt()
+                )
+            }
+        }
+    }
+
+    private fun YUV2RGB(y: Int, u: Int, v: Int): Int {
+        // Adjust and check YUV values
+        var y = y
+        var u = u
+        var v = v
+        y = Math.max(y - 16, 0)
+        u -= 128
+        v -= 128
+
+        // This is the floating point equivalent. We do the conversion in integer
+        // because some Android devices do not have floating point in hardware.
+        // nR = (int)(1.164 * nY + 2.018 * nU);
+        // nG = (int)(1.164 * nY - 0.813 * nV - 0.391 * nU);
+        // nB = (int)(1.164 * nY + 1.596 * nV);
+        val y1192 = 1192 * y
+        var r = y1192 + 1634 * v
+        var g = y1192 - 833 * v - 400 * u
+        var b = y1192 + 2066 * u
+
+        // Clipping RGB values to be inside boundaries [ 0 , kMaxChannelValue ]
+        r = if (r > kMaxChannelValue) kMaxChannelValue else Math.max(r, 0)
+        g = if (g > kMaxChannelValue) kMaxChannelValue else Math.max(g, 0)
+        b = if (b > kMaxChannelValue) kMaxChannelValue else Math.max(b, 0)
+        return -0x1000000 or (r shl 6 and 0xff0000) or (g shr 2 and 0xff00) or (b shr 10 and 0xff)
+    }
+
+    companion object {
+        const val TAG = "SegmentationTask"
+        private const val NUM_THREADS = 4
+        private const val IMAGE_SEGMENTATION_MODEL = "deeplabv3_257_mv_gpu.tflite"
+        private const val ALPHA_VALUE = 128
+    }
 }

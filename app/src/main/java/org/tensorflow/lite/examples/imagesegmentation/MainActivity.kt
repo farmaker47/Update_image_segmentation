@@ -63,7 +63,6 @@ class MainActivity : AppCompatActivity(), CameraFragment.OnCaptureFinished {
     private lateinit var cameraFragment: CameraFragment
     private lateinit var viewModel: MLExecutionViewModel
 
-    private var lastSavedFile = ""
     private var useGPU = false
 
     private var lensFacing = CameraCharacteristics.LENS_FACING_FRONT
@@ -113,10 +112,8 @@ class MainActivity : AppCompatActivity(), CameraFragment.OnCaptureFinished {
         }
 
         binding.rerunButton.setSafeOnClickListener {
-            if (lastSavedFile.isNotEmpty()) {
-                enableControls(false)
-                viewModel.onApplyModel(lastSavedFile)
-            }
+            enableControls(false)
+            cameraFragment.processingImage()
         }
 
         animateCameraButton()
@@ -188,14 +185,14 @@ class MainActivity : AppCompatActivity(), CameraFragment.OnCaptureFinished {
     }
 
     private fun enableControls(enable: Boolean) {
-        binding.rerunButton.isEnabled = enable && lastSavedFile.isNotEmpty()
+        binding.rerunButton.isEnabled = enable
         binding.captureButton.isEnabled = enable
     }
 
     private fun setupControls() {
         binding.captureButton.setSafeOnClickListener {
             it.clearAnimation()
-            cameraFragment.takePicture()
+            cameraFragment.processingImage()
         }
 
         findViewById<ImageButton>(R.id.toggle_button).setSafeOnClickListener {
@@ -252,13 +249,9 @@ class MainActivity : AppCompatActivity(), CameraFragment.OnCaptureFinished {
         ) == PackageManager.PERMISSION_GRANTED
     }
 
-    override fun onCaptureFinished(file: File) {
-        val msg = "Photo capture succeeded: ${file.absolutePath}"
-        Log.d(TAG, msg)
-
-        lastSavedFile = file.absolutePath
+    override fun onCaptureFinished(image: Image, imageRotation: Int) {
         enableControls(false)
-        viewModel.onApplyModel(file.absolutePath)
+        viewModel.onApplyModel(image, imageRotation)
     }
 
     fun View.setSafeOnClickListener(onSafeClick: (View) -> Unit) {
