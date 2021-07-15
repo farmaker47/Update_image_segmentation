@@ -121,7 +121,7 @@ class MainActivity : AppCompatActivity(), CameraFragment.OnCaptureFinished {
 
         animateCameraButton()
 
-        setChipsToLogView(HashMap<String, Int>())
+        setChipsToLogView(HashMap())
         setupControls()
         enableControls(true)
     }

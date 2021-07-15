@@ -46,7 +46,9 @@ import java.io.*
 
 class CameraFragment : Fragment() {
 
-    // interface to interact with the hosting activity
+    /**
+     * Interface to interact with the hosting activity
+     */
     interface OnCaptureFinished {
         fun onCaptureFinished(file: File)
     }
@@ -62,42 +64,21 @@ class CameraFragment : Fragment() {
 
     private lateinit var binding: TfeCameraFragmentBinding
 
-    //private lateinit var broadcastReceiver: BroadcastReceiver
-    //private lateinit var imageGeneral: Image
-
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
         binding = TfeCameraFragmentBinding.inflate(inflater)
-
-        //setUpBroadcastReceiver()
-
         return binding.root
     }
-
-    /*private fun setUpBroadcastReceiver() {
-        broadcastReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, i: Intent?) {
-                Log.d("Broadcast", "Received")
-                imageGeneral.close()
-            }
-        }
-        activity?.registerReceiver(broadcastReceiver, IntentFilter("all_articles_update"))
-    }
-
-    override fun onDestroyView() {
-        super.onDestroyView()
-        activity?.unregisterReceiver(broadcastReceiver)
-    }*/
 
     @SuppressLint("MissingPermission")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        // Start the camera
         startCamera()
-
     }
 
     private fun startCamera() {
@@ -116,8 +97,6 @@ class CameraFragment : Fragment() {
             // set up Capture
             imageCapture = ImageCapture.Builder()
                 .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
-                //.setTargetRotation(Surface.ROTATION_270)
-                //.setTargetRotation(binding.previewView.display.rotation)
                 .setTargetResolution(Size(512, 512)) // Target resolution to 512x512
                 .build()
 
@@ -154,45 +133,6 @@ class CameraFragment : Fragment() {
 
             // Create output options object which contains file + metadata
             val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
-
-            /*imageCapture.takePicture(
-                ContextCompat.getMainExecutor(requireActivity()),
-                object : ImageCapture.OnImageCapturedCallback() {
-
-                    override fun onError(exc: ImageCaptureException) {
-                        Log.e(TAG, "Photo capture failed: ${exc.message}", exc)
-                    }
-
-                    override fun onCaptureSuccess(image: ImageProxy) {
-
-
-                        Log.e("FORMAT", image.format.toString())
-
-                        *//*kotlin.runCatching {
-                        }.onFailure {
-                        }.onSuccess {
-
-
-                        }
-*//*
-                        Log.v(TAG, "Success")
-                        // Trigger the callback
-                        image.image?.let {
-                            callback.onCaptureFinished(it)
-                        }
-
-                        lifecycleScope.launch {
-                            delay(900)
-                            image.close()
-                        }
-
-                        //image.close()
-
-                    }
-                }
-
-
-            )*/
 
             imageCapture.takePicture(
                 outputOptions,
