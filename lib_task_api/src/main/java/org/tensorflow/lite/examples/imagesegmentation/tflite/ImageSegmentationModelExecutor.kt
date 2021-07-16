@@ -69,7 +69,6 @@ class ImageSegmentationModelExecutor(
     fun execute(inputImage: Image, imageRotation: Int): ModelExecutionResult {
         try {
             fullTimeExecutionTime = SystemClock.uptimeMillis()
-            val originalImage = imageToRGB(inputImage, inputImage.width, inputImage.height)
 
             imageSegmentationTime = SystemClock.uptimeMillis()
             val tensorImage = TensorImage()
@@ -95,6 +94,8 @@ class ImageSegmentationModelExecutor(
 
             fullTimeExecutionTime = SystemClock.uptimeMillis() - fullTimeExecutionTime
             Log.d(TAG, "Total time execution $fullTimeExecutionTime")
+
+            val originalImage = imageToRGB(inputImage, inputImage.width, inputImage.height)
 
             return ModelExecutionResult(
                 /*bitmapResult=*/ rotateBitmap(
