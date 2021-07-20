@@ -127,6 +127,7 @@ class ImageSegmentationModelExecutor(
 
     /**
      * See http://jpegclub.org/exif_orientation.html for info
+     * also https://www.impulseadventure.com/photo/images/orient_flag.gif
      */
     private fun getOrientation(cameraOrientation: Int): ImageProcessingOptions.Orientation {
         return when (cameraOrientation / 90) {
