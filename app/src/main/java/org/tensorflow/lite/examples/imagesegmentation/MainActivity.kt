@@ -72,10 +72,9 @@ class MainActivity : AppCompatActivity(), CameraFragment.OnCaptureFinished {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        binding = DataBindingUtil.setContentView(this, R.layout.tfe_is_activity_main)
+        binding = DataBindingUtil.setContentView(this, R.layout.tfe_is_activity_main) //TfeIsActivityMainBinding.inflate(layoutInflater)
 
-        val toolbar: Toolbar = findViewById(R.id.toolbar)
-        setSupportActionBar(toolbar)
+        setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayShowTitleEnabled(false)
 
         // Request camera permissions
@@ -149,11 +148,10 @@ class MainActivity : AppCompatActivity(), CameraFragment.OnCaptureFinished {
             chip.setPadding(0, paddingDp, 0, paddingDp)
             binding.chipsGroup.addView(chip)
         }
-        val labelsFoundTextView: TextView = findViewById(R.id.tfe_is_labels_found)
         if (binding.chipsGroup.childCount == 0) {
-            labelsFoundTextView.text = getString(R.string.tfe_is_no_labels_found)
+            binding.tfeIsLabelsFound.text = getString(R.string.tfe_is_no_labels_found)
         } else {
-            labelsFoundTextView.text = getString(R.string.tfe_is_labels_found)
+            binding.tfeIsLabelsFound.text = getString(R.string.tfe_is_labels_found)
         }
         binding.chipsGroup.parent.requestLayout()
     }
@@ -169,7 +167,7 @@ class MainActivity : AppCompatActivity(), CameraFragment.OnCaptureFinished {
     }
 
     private fun setImageView(imageView: ImageView, image: Bitmap) {
-        Glide.with(baseContext)
+        Glide.with(this@MainActivity)
             .load(image)
             .override(512, 512)
             .fitCenter()
@@ -198,7 +196,7 @@ class MainActivity : AppCompatActivity(), CameraFragment.OnCaptureFinished {
             cameraFragment.takePicture()
         }
 
-        findViewById<ImageButton>(R.id.toggle_button).setSafeOnClickListener {
+        binding.toggleButton.setSafeOnClickListener {
             lensFacing = if (lensFacing == CameraCharacteristics.LENS_FACING_BACK) {
                 CameraCharacteristics.LENS_FACING_FRONT
             } else {
@@ -239,7 +237,7 @@ class MainActivity : AppCompatActivity(), CameraFragment.OnCaptureFinished {
         cameraFragment.setFacingCamera(lensFacing)
         supportFragmentManager.popBackStack()
         supportFragmentManager.beginTransaction()
-            .replace(R.id.view_finder, cameraFragment)
+            .replace(binding.viewFinder.id, cameraFragment)
             .commit()
     }
 
