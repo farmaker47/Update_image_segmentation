@@ -1,6 +1,6 @@
 # Image Segmentation Android sample.
 
-This project is an effort to update the original segmentation android project that is demonstrated [here](https://github.com/tensorflow/examples/tree/master/lite/examples/image_segmentation/android). In this project CameraX is used instead of Camera2 class. You can find both implementations of CameraX inside the project, [ImageCapture](https://developer.android.com/training/camerax/take-photo) where Bitmap is used for inference and [ImageAnalysis](https://developer.android.com/training/camerax/analyze) where media.Image (from CameraX's ImageProxy) is used for inference.
+This project is an effort to update the original segmentation android project that is demonstrated [here](https://github.com/tensorflow/examples/tree/master/lite/examples/image_segmentation/android). In this project CameraX is used instead of Camera2 class. You can find both implementations of CameraX inside the project, [ImageCapture](https://developer.android.com/training/camerax/take-photo) where Bitmap is used for inference (master branch) and [ImageAnalysis](https://developer.android.com/training/camerax/analyze) where media.Image (from CameraX's ImageProxy) is used for inference (ImageAnalysis branch).
 
 The used model, DeepLab
 [https://ai.googleblog.com/2018/03/semantic-image-segmentation-with.html] is a
