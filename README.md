@@ -1,41 +1,14 @@
 # Image Segmentation Android sample.
 
+This project is an effort to update the original segmentation android project that is demonstrated [here](https://github.com/tensorflow/examples/tree/master/lite/examples/image_segmentation/android). In this project CameraX is used instead of Camera2 class. You can find both implementations of CameraX inside the project, [ImageCapture](https://developer.android.com/training/camerax/take-photo) where Bitmap is used for inference (master branch) and [ImageAnalysis](https://developer.android.com/training/camerax/analyze) where media.Image (from CameraX's ImageProxy) is used for inference (ImageAnalysis branch).
+
 The used model, DeepLab
 [https://ai.googleblog.com/2018/03/semantic-image-segmentation-with.html] is a
 state-of-art deep learning model for semantic image segmentation, where the goal
 is to assign semantic labels (e.g. person, dog, cat) to every pixel in the input
 image.
 
-## Requirements
-
-*   Android Studio 3.2 (installed on a Linux, Mac or Windows machine)
-*   An Android device, or an Android Emulator
-
-## Build and run
-
-### Step 1. Clone the TensorFlow examples source code
-
-Clone the TensorFlow examples GitHub repository to your computer to get the demo
-application.
-
-```
-git clone https://github.com/tensorflow/examples
-```
-
-### Step 2. Import the sample app to Android Studio
-
-Open the TensorFlow source code in Android Studio. To do this, open Android
-Studio and select `Import Projects (Gradle, Eclipse ADT, etc.)`, setting the
-folder to `examples/lite/examples/image_segmentation/android`
-
-### Step 3. Run the Android app
-
-Connect the Android device to the computer and be sure to approve any ADB
-permission prompts that appear on your phone. Select `Run -> Run app.` Select
-the deployment target in the connected devices to the device on which the app
-will be installed. This will install the app on the device.
-
-#### Switch between inference solutions (Task library vs TFLite Interpreter)
+### Switch between inference solutions (Task library vs TFLite Interpreter)
 
 This image segmentation Android reference app demonstrates two implementation
 solutions:
@@ -72,10 +45,6 @@ inputs and outputs by using `lib_interpreter`.*
 
 ## Resources used:
 
-*   Camera2:
-    https://developer.android.com/reference/android/hardware/camera2/package-summary
-*   Camera2 base sample:
-    https://github.com/android/camera-samples/tree/master/Camera2Formats
 *   TensorFlow Lite: https://www.tensorflow.org/lite
 *   ImageSegmentation model:
     https://www.tensorflow.org/lite/models/segmentation/overview
