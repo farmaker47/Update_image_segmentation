@@ -51,11 +51,6 @@ class ImageSegmentationModelExecutor(
   private var imageSegmentationTime = 0L
   private var maskFlatteningTime = 0L
 
-  private val yuvBytes = arrayOfNulls<ByteArray>(3)
-  private var rgbBytes: IntArray? = null
-  private var yRowStride = 0
-  val kMaxChannelValue = 262143
-
   init {
 
     if (useGPU) {
@@ -172,6 +167,88 @@ class ImageSegmentationModelExecutor(
   companion object {
     const val TAG = "SegmentationTask"
     private const val NUM_THREADS = 4
+
+    /**
+     * Model information if you use metadataextractor from
+     * https://www.tensorflow.org/lite/convert/metadata_writer_tutorial#read_the_metadata_populated_to_your_model
+     *
+     * Metadata populated:
+    {
+    "name": "DeepLabV3",
+    "description": "Semantic image segmentation predicts whether each pixel of an image is associated with a certain class.",
+    "version": "v1",
+    "subgraph_metadata": [
+    {
+    "input_tensor_metadata": [
+    {
+    "name": "image",
+    "description": "Input image to be segmented. The expected image is 257 x 257, with three channels (red, blue, and green) per pixel. Each element in the tensor is a value between -1 and 1.",
+    "content": {
+    "content_properties_type": "ImageProperties",
+    "content_properties": {
+    "color_space": "RGB"
+    }
+    },
+    "process_units": [
+    {
+    "options_type": "NormalizationOptions",
+    "options": {
+    "mean": [
+    127.5
+    ],
+    "std": [
+    127.5
+    ]
+    }
+    }
+    ],
+    "stats": {
+    "max": [
+    1.0
+    ],
+    "min": [
+    -1.0
+    ]
+    }
+    }
+    ],
+    "output_tensor_metadata": [
+    {
+    "name": "segmentation masks",
+    "description": "Masks over the target objects with high accuracy.",
+    "content": {
+    "content_properties_type": "ImageProperties",
+    "content_properties": {
+    "color_space": "GRAYSCALE"
+    },
+    "range": {
+    "min": 1,
+    "max": 2
+    }
+    },
+    "associated_files": [
+    {
+    "name": "labelmap.txt",
+    "description": "Label of classes that this model can recognize.",
+    "type": "TENSOR_AXIS_LABELS"
+    }
+    ]
+    }
+    ]
+    }
+    ],
+    "author": "TensorFlow",
+    "license": "Apache License. Version 2.0 http://www.apache.org/licenses/LICENSE-2.0.",
+    "min_parser_version": "1.0.0"
+    }
+
+    Associated file(s) populated:
+    file name:  labelmap.txt
+    file content:
+    b'background\naeroplane\nbicycle\nbird\nboat\nbottle\nbus\ncar\ncat\nchair\ncow\ndining table\ndog\nhorse\nmotorbike\nperson\npotted plant\nsheep\nsofa\ntrain\ntv\n'
+     *
+     * This info is used directly from Task library to resize and normalize the input
+     */
     private const val IMAGE_SEGMENTATION_MODEL = "deeplabv3_257_mv_gpu.tflite"
     private const val ALPHA_VALUE = 128
   }

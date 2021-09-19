@@ -127,12 +127,11 @@ class ImageSegmentationModelExecutor(
         emptyBitmap,
         emptyBitmap,
         exceptionLog,
-        HashMap<String, Int>()
+        HashMap()
       )
     }
   }
 
-  // base: https://github.com/tensorflow/tensorflow/blob/master/tensorflow/lite/java/demo/app/src/main/java/com/example/android/tflitecamerademo/ImageClassifier.java
   @Throws(IOException::class)
   private fun loadModelFile(context: Context, modelFile: String): MappedByteBuffer {
     val fileDescriptor = context.assets.openFd(modelFile)
@@ -232,7 +231,7 @@ class ImageSegmentationModelExecutor(
 
   companion object {
 
-    public const val TAG = "SegmentationInterpreter"
+    const val TAG = "SegmentationInterpreter"
     private const val imageSegmentationModel = "deeplabv3_257_mv_gpu.tflite"
     private const val imageSize = 257
     const val NUM_CLASSES = 21

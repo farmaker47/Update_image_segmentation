@@ -122,7 +122,6 @@ class CameraFragment : Fragment() {
 
     @SuppressLint("UnsafeOptInUsageError")
     fun takePicture() {
-
         lifecycleScope.launch(Dispatchers.Default) {
 
             // Get a stable reference of the modifiable image capture use case
@@ -176,7 +175,6 @@ class CameraFragment : Fragment() {
         } catch (e: IOException) {
             e.printStackTrace()
         }
-
         return file
     }
 
