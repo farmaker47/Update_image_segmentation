@@ -181,13 +181,11 @@ class CameraFragment : Fragment() {
     }
 
     private fun rotateBitmap(bitmap: Bitmap, rotationDegrees: Int): Bitmap {
-
         val rotationMatrix = Matrix()
         rotationMatrix.postRotate(rotationDegrees.toFloat())
         val rotatedBitmap =
             Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, rotationMatrix, true)
         bitmap.recycle()
-
         return rotatedBitmap
     }
 
@@ -231,6 +229,13 @@ class CameraFragment : Fragment() {
          */
         private fun createFile(context: Context, extension: String): File {
             val sdf = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss_SSS", Locale.US)
+            /**
+             * Returns the absolute path to the directory on the filesystem where files created with openFileOutput are stored.
+             * The returned path may change over time if the calling app is moved to an adopted storage device, so only relative paths should be persisted.
+             * No additional permissions are required for the calling app to read or write files under the returned path.
+             * Returns:
+             * The path of the directory holding application files.
+             */
             return File(context.filesDir, "IMG_${sdf.format(Date())}.$extension")
         }
 
