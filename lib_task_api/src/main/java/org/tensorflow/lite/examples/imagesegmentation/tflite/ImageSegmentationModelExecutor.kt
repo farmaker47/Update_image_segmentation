@@ -51,11 +51,6 @@ class ImageSegmentationModelExecutor(
   private var imageSegmentationTime = 0L
   private var maskFlatteningTime = 0L
 
-  private val yuvBytes = arrayOfNulls<ByteArray>(3)
-  private var rgbBytes: IntArray? = null
-  private var yRowStride = 0
-  val kMaxChannelValue = 262143
-
   init {
 
     if (useGPU) {

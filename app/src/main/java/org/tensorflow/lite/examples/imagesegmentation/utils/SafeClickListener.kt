@@ -3,6 +3,9 @@ package org.tensorflow.lite.examples.imagesegmentation.utils
 import android.os.SystemClock
 import android.view.View
 
+/**
+ * Class to prevent button to be triggered more than once in a short period of time.
+ */
 class SafeClickListener(
     private var defaultInterval: Int = 1000,
     private val onSafeCLick: (View) -> Unit

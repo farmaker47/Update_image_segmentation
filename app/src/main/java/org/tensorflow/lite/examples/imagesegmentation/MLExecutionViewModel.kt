@@ -54,7 +54,6 @@ class MLExecutionViewModel(application: Application) : AndroidViewModel(applicat
             imageSegmentationModel = ImageSegmentationModelExecutor(getApplication(), useGPU)
         } catch (e: Exception) {
             Log.e(TAG, "Fail to create ImageSegmentationModelExecutor: ${e.message}")
-            //_errorString.value = e.message
         }
     }
 
@@ -62,6 +61,7 @@ class MLExecutionViewModel(application: Application) : AndroidViewModel(applicat
         filePath: String
     ) {
         viewModelScope.launch(Dispatchers.Default) {
+            // Get the bitmap from file
             val contentImage =
                 ImageUtils.decodeBitmap(
                     File(filePath)
