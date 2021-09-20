@@ -66,33 +66,6 @@ class CameraFragment : Fragment() {
         startCamera()
     }
 
-    /*private val orientationEventListener by lazy {
-        object : OrientationEventListener(requireActivity()) {
-
-            override fun onOrientationChanged(orientation: Int) {
-
-                val rotation = when (orientation) {
-                    in 45 until 135 -> Surface.ROTATION_270
-                    in 135 until 225 -> Surface.ROTATION_180
-                    in 225 until 315 -> Surface.ROTATION_90
-                    else -> Surface.ROTATION_0
-                }
-
-                imageAnalysis?.targetRotation = rotation
-            }
-        }
-    }
-
-    override fun onStart() {
-        super.onStart()
-        orientationEventListener.enable()
-    }
-
-    override fun onStop() {
-        super.onStop()
-        orientationEventListener.disable()
-    }*/
-
     @SuppressLint("UnsafeOptInUsageError")
     private fun startCamera() {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(requireActivity())
@@ -123,7 +96,6 @@ class CameraFragment : Fragment() {
                         // Define rotation Degrees of the imageProxy
                         val rotationDegrees = image.imageInfo.rotationDegrees
                         Log.v("Image_degrees", rotationDegrees.toString())
-                        Log.v("Screen_degrees", getScreenOrientation().toString())
 
                         // Trigger the callback
                         if (!isProcessingFrame) {
@@ -164,15 +136,6 @@ class CameraFragment : Fragment() {
     fun processingImage() {
         isProcessingFrame = false
         copyImage?.close()
-    }
-
-    private fun getScreenOrientation(): Int {
-        return when (requireActivity().display?.rotation) {
-            Surface.ROTATION_270 -> 270
-            Surface.ROTATION_180 -> 180
-            Surface.ROTATION_90 -> 90
-            else -> 0
-        }
     }
 
     /**
