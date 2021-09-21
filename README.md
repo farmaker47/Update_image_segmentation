@@ -48,3 +48,5 @@ inputs and outputs by using `lib_interpreter`.*
 *   TensorFlow Lite: https://www.tensorflow.org/lite
 *   ImageSegmentation model:
     https://www.tensorflow.org/lite/models/segmentation/overview
+*   TFHub segmentation models:
+    https://tfhub.dev/s?module-type=image-segmentation
