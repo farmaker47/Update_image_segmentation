@@ -48,3 +48,6 @@ inputs and outputs by using `lib_interpreter`.*
 *   TensorFlow Lite: https://www.tensorflow.org/lite
 *   ImageSegmentation model:
     https://www.tensorflow.org/lite/models/segmentation/overview
+   
+## Medium link
+*   https://farmaker47.medium.com/use-camerax-with-image-segmentation-android-project-d8656f35cea3
