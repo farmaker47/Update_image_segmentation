@@ -50,3 +50,6 @@ inputs and outputs by using `lib_interpreter`.*
     https://www.tensorflow.org/lite/models/segmentation/overview
 *   TFHub segmentation models:
     https://tfhub.dev/s?module-type=image-segmentation
+    
+## Medium link
+*   https://farmaker47.medium.com/use-camerax-with-image-segmentation-android-project-d8656f35cea3
