@@ -29,8 +29,7 @@ import android.os.SystemClock
 import org.opencv.android.Utils
 
 import org.opencv.core.Core
-
-import org.opencv.core.CvType.CV_32F
+import org.opencv.core.CvType.*
 
 import org.opencv.core.Mat
 
@@ -169,8 +168,8 @@ abstract class ImageUtils {
             mean: Float = 0.0f,
             std: Float = 255.0f
         ): ByteBuffer {
-            val startTime = SystemClock.uptimeMillis()
             val bitmap = scaleBitmapAndKeepRatio(bitmapIn, width, height)
+            val startTime = SystemClock.uptimeMillis()
             val inputImage = ByteBuffer.allocateDirect(1 * width * height * 3 * 4)
             inputImage.order(ByteOrder.nativeOrder())
             inputImage.rewind()
@@ -193,12 +192,12 @@ abstract class ImageUtils {
 
             inputImage.rewind()
             val endTime = SystemClock.uptimeMillis()
-            Log.v("BitWise", (endTime-startTime).toString())
+            Log.v("Bitwise", (endTime - startTime).toString())
             return inputImage
         }
 
         /** Writes Image data into a `ByteBuffer`.  */
-        fun convertBitmapToByteBuffer(bitmap: Bitmap): ByteBuffer {
+        fun bitmapToBytebufferWithOpenCV(bitmap: Bitmap): ByteBuffer {
             val startTime = SystemClock.uptimeMillis()
             val imgData = ByteBuffer.allocateDirect(1 * 257 * 257 * 3 * 4)
             imgData.order(ByteOrder.nativeOrder())
@@ -218,12 +217,12 @@ abstract class ImageUtils {
             val buf = FloatArray(257 * 257 * 3)
             newmat.get(0, 0, buf)
 
-            for (i in buf.indices){
-               imgData.putFloat(buf[i])
+            for (i in buf.indices) {
+                imgData.putFloat(buf[i])
             }
             imgData.rewind()
             val endTime = SystemClock.uptimeMillis()
-            Log.v("BitWise", (endTime-startTime).toString())
+            Log.v("Bitwise", (endTime - startTime).toString())
             return imgData
         }
 
