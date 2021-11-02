@@ -79,14 +79,16 @@ class ImageSegmentationModelExecutor(
           imageSize, imageSize
         )
 
-      val contentArray =
+      /*val contentArray =
         ImageUtils.bitmapToByteBuffer(
           scaledBitmap,
           imageSize,
           imageSize,
           IMAGE_MEAN,
           IMAGE_STD
-        )
+        )*/
+
+      val contentArray = ImageUtils.convertBitmapToByteBuffer(scaledBitmap)
       preprocessTime = SystemClock.uptimeMillis() - preprocessTime
 
       imageSegmentationTime = SystemClock.uptimeMillis()

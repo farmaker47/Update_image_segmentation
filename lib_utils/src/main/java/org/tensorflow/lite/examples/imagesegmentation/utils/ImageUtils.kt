@@ -20,13 +20,25 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.graphics.RectF
-import android.media.Image
-import android.media.Image.Plane
 import android.util.Log
 import androidx.exifinterface.media.ExifInterface
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import android.os.SystemClock
+import org.opencv.android.Utils
+
+import org.opencv.core.Core
+
+import org.opencv.core.CvType.CV_32F
+
+import org.opencv.core.Mat
+
+import org.opencv.imgproc.Imgproc
+
+import org.opencv.core.CvType.CV_32FC3
+
+import org.opencv.core.CvType.CV_8UC3
 
 /**
  * Collection of image reading and manipulation utilities in the form of static functions.
@@ -161,6 +173,7 @@ abstract class ImageUtils {
             mean: Float = 0.0f,
             std: Float = 255.0f
         ): ByteBuffer {
+            val startTime = SystemClock.uptimeMillis()
             val bitmap = scaleBitmapAndKeepRatio(bitmapIn, width, height)
             val inputImage = ByteBuffer.allocateDirect(1 * width * height * 3 * 4)
             inputImage.order(ByteOrder.nativeOrder())
@@ -183,7 +196,39 @@ abstract class ImageUtils {
             }
 
             inputImage.rewind()
+            val endTime = SystemClock.uptimeMillis()
+            Log.v("BitWise", (endTime-startTime).toString())
             return inputImage
+        }
+
+        /** Writes Image data into a `ByteBuffer`.  */
+        fun convertBitmapToByteBuffer(bitmap: Bitmap): ByteBuffer {
+            val startTime = SystemClock.uptimeMillis()
+            val imgData = ByteBuffer.allocateDirect(1 * 257 * 257 * 3 * 4)
+            imgData.order(ByteOrder.nativeOrder())
+
+            val bufmat = Mat()
+            val newmat = Mat()
+            Utils.bitmapToMat(bitmap, bufmat)
+            Imgproc.cvtColor(bufmat, bufmat, Imgproc.COLOR_RGBA2RGB)
+            val spIm: List<Mat> = ArrayList(3)
+
+            Core.split(bufmat, spIm)
+            spIm[0].convertTo(spIm[0], CV_32F, 1.0 / 255.0)
+            spIm[1].convertTo(spIm[1], CV_32F, 1.0 / 255.0)
+            spIm[2].convertTo(spIm[2], CV_32F, 1.0 / 255.0)
+            Core.merge(spIm, newmat)
+
+            val buf = FloatArray(257 * 257 * 3)
+            newmat.get(0, 0, buf)
+
+            for (i in buf.indices){
+               imgData.putFloat(buf[i])
+            }
+            imgData.rewind()
+            val endTime = SystemClock.uptimeMillis()
+            Log.v("BitWise", (endTime-startTime).toString())
+            return imgData
         }
 
         fun createEmptyBitmap(imageWidth: Int, imageHeigth: Int, color: Int = 0): Bitmap {

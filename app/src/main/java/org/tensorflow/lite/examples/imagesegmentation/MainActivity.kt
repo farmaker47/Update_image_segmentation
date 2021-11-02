@@ -42,6 +42,7 @@ import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import com.google.android.material.chip.Chip
 import kotlinx.coroutines.*
+import org.opencv.android.OpenCVLoader
 import java.io.File
 import org.tensorflow.lite.examples.imagesegmentation.camera.CameraFragment
 import org.tensorflow.lite.examples.imagesegmentation.databinding.TfeIsActivityMainBinding
@@ -124,6 +125,9 @@ class MainActivity : AppCompatActivity(), CameraFragment.OnCaptureFinished {
         setChipsToLogView(HashMap())
         setupControls()
         enableControls(true)
+
+        // Start openCv
+        OpenCVLoader.initDebug()
     }
 
     private fun animateCameraButton() {
