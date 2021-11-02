@@ -36,10 +36,6 @@ import org.opencv.core.Mat
 
 import org.opencv.imgproc.Imgproc
 
-import org.opencv.core.CvType.CV_32FC3
-
-import org.opencv.core.CvType.CV_8UC3
-
 /**
  * Collection of image reading and manipulation utilities in the form of static functions.
  */
@@ -211,13 +207,13 @@ abstract class ImageUtils {
             val newmat = Mat()
             Utils.bitmapToMat(bitmap, bufmat)
             Imgproc.cvtColor(bufmat, bufmat, Imgproc.COLOR_RGBA2RGB)
-            val spIm: List<Mat> = ArrayList(3)
+            val splitImage: List<Mat> = ArrayList(3)
 
-            Core.split(bufmat, spIm)
-            spIm[0].convertTo(spIm[0], CV_32F, 1.0 / 255.0)
-            spIm[1].convertTo(spIm[1], CV_32F, 1.0 / 255.0)
-            spIm[2].convertTo(spIm[2], CV_32F, 1.0 / 255.0)
-            Core.merge(spIm, newmat)
+            Core.split(bufmat, splitImage)
+            splitImage[0].convertTo(splitImage[0], CV_32F, 1.0 / 255.0)
+            splitImage[1].convertTo(splitImage[1], CV_32F, 1.0 / 255.0)
+            splitImage[2].convertTo(splitImage[2], CV_32F, 1.0 / 255.0)
+            Core.merge(splitImage, newmat)
 
             val buf = FloatArray(257 * 257 * 3)
             newmat.get(0, 0, buf)
